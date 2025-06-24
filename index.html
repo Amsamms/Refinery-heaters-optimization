@@ -1,0 +1,528 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Interactive Refinery Heater Optimization Dashboard</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+    
+    <!-- Chosen Palette: Industrial Warm Neutral -->
+    <!-- Application Structure Plan: The application is structured as a single-page dashboard with four main thematic tabs: 'Overview', 'Optimization Levers', 'Implementation Roadmap', and 'Heater Fundamentals'. This tab-based navigation was chosen over a linear scroll to allow users to quickly access the information most relevant to them, whether it's a high-level summary, a deep dive into specific technologies, actionable implementation steps, or foundational knowledge. The user flow starts with a compelling overview, moves to detailed interactive exploration of strategies, provides a clear plan for action, and offers background context on demand. This non-linear, task-oriented structure enhances usability by preventing information overload and catering to different user goals (e.g., manager seeking ROI vs. engineer seeking technical details). -->
+    <!-- Visualization & Content Choices: 
+        - Report Info: Executive Summary Table Data -> Goal: Compare -> Viz: Interactive Bubble Chart (Chart.js) -> Interaction: Hover tooltips show details -> Justification: Visualizes the relationship between Fuel Savings, Payback Period, and Impact (bubble size) for all strategies at a glance, providing a powerful comparative summary.
+        - Report Info: Heater Components & Function -> Goal: Inform -> Viz: Interactive Diagram (HTML/CSS) -> Interaction: Hovering on sections reveals descriptive tooltips -> Justification: Makes abstract concepts tangible and easier to understand than text alone.
+        - Report Info: Optimization Strategies (Combustion, Thermal, etc.) -> Goal: Organize & Compare -> Viz: Hierarchical Accordion/Card layout -> Interaction: Clicking on a strategy card reveals details, a bar chart (Chart.js), and a case study -> Justification: A drill-down approach neatly organizes dense information, allowing users to compare strategies without being overwhelmed.
+        - Report Info: Tiered Implementation Plan -> Goal: Organize & Guide -> Viz: Three-column layout (HTML/Tailwind) -> Interaction: Hover effects on cards -> Justification: Translates the report's actionable plan into a clear, scannable, and visually structured roadmap.
+        - Report Info: Case Study Data -> Goal: Inform & Persuade -> Viz: Styled text blocks within strategy cards -> Interaction: Revealed on click -> Justification: Integrates quantitative evidence directly with the strategy it supports, making a stronger case for adoption.
+    -->
+    <!-- CONFIRMATION: NO SVG graphics used. NO Mermaid JS used. -->
+
+    <style>
+        body {
+            font-family: 'Inter', sans-serif;
+            background-color: #f8f9fa;
+        }
+        .tab-active {
+            border-bottom-color: #3b82f6;
+            color: #1e3a8a;
+            font-weight: 600;
+        }
+        .tab-inactive {
+            border-bottom-color: transparent;
+            color: #4b5563;
+        }
+        .accordion-content {
+            max-height: 0;
+            overflow: hidden;
+            transition: max-height 0.5s ease-out;
+        }
+        .chart-container {
+            position: relative;
+            width: 100%;
+            max-width: 800px;
+            margin-left: auto;
+            margin-right: auto;
+            height: 40vh;
+            max-height: 500px;
+        }
+        .small-chart-container {
+            position: relative;
+            width: 100%;
+            max-width: 400px;
+            margin-left: auto;
+            margin-right: auto;
+            height: 200px;
+            max-height: 250px;
+        }
+        .strategy-card {
+            transition: all 0.3s ease;
+            cursor: pointer;
+        }
+        .strategy-card:hover {
+            transform: translateY(-5px);
+            box-shadow: 0 10px 15px -3px rgb(0 0 0 / 0.1), 0 4px 6px -4px rgb(0 0 0 / 0.1);
+        }
+    </style>
+</head>
+<body class="bg-gray-50 text-gray-800">
+
+    <div id="app" class="container mx-auto p-4 md:p-8">
+        
+        <header class="text-center mb-8">
+            <h1 class="text-4xl md:text-5xl font-bold text-gray-800">The Modern Fired Heater</h1>
+            <p class="mt-2 text-lg text-gray-600">An Interactive Guide to Optimizing Efficiency, Reliability, and Safety</p>
+        </header>
+
+        <nav class="mb-8 border-b border-gray-200">
+            <ul class="flex flex-wrap -mb-px justify-center text-sm font-medium text-center">
+                <li class="mr-2">
+                    <button class="inline-block p-4 border-b-2 rounded-t-lg tab-active" data-tab="overview">Overview</button>
+                </li>
+                <li class="mr-2">
+                    <button class="inline-block p-4 border-b-2 rounded-t-lg tab-inactive" data-tab="levers">Optimization Levers</button>
+                </li>
+                <li class="mr-2">
+                    <button class="inline-block p-4 border-b-2 rounded-t-lg tab-inactive" data-tab="roadmap">Implementation Roadmap</button>
+                </li>
+                <li>
+                    <button class="inline-block p-4 border-b-2 rounded-t-lg tab-inactive" data-tab="fundamentals">Heater Fundamentals</button>
+                </li>
+            </ul>
+        </nav>
+
+        <main id="content-area">
+            <!-- Content will be injected by JavaScript -->
+        </main>
+
+    </div>
+
+    <script>
+        const appData = {
+            strategies: [
+                { id: 'damper', name: 'Damper & Register Control', category: 'Combustion', savings: [1, 4], payback: 0.5, impact: 2, description: 'Manual or automated tuning of dampers and registers to maintain optimal draft and excess O₂ levels. This is a foundational, low-cost improvement.', case_study: { name: 'German Refinery', result: 'Achieved a 3% thermal efficiency gain from simple manual adjustments alone, with a payback period of less than one year.' }},
+                { id: 'co_control', name: 'CO-Based Trim Control', category: 'Combustion', savings: [2, 5], payback: 1.5, impact: 5, description: 'Uses a fast-acting analyzer to measure CO concentration, allowing the air-to-fuel ratio to be pushed to its absolute optimum point with a high degree of confidence and safety.', case_study: { name: 'Spanish Refinery', result: 'Achieved >5% fuel savings by reducing average O₂ from a high 5-7% down to ~2% using a CO-controlled furnace approach.' }},
+                { id: 'tdls', name: 'TDLS Installation (In-Situ)', category: 'Combustion', savings: [3, 5], payback: 2, impact: 7, description: 'Tunable Diode Laser Spectroscopy provides real-time, in-situ gas analysis (O₂, CO, CH₄), enabling tighter combustion control and enhanced safety permissives.', case_study: { name: 'Yokogawa Case Studies', result: 'Fuel reductions of 5% achieved in many cases. A European refinery reduced excess O₂ by 1-1.5%, enhancing efficiency and safety.' }},
+                { id: 'uln_burner', name: 'ULN Burner Technology', category: 'Combustion', savings: [0,0], payback: 3, impact: 6, description: 'Ultra-Low NOx burners use staged combustion and flue gas recirculation to minimize NOx emissions, meeting environmental mandates while enabling lean operation.', case_study: { name: 'North American Refinery', result: 'Solved flame instability on new ULN burners by using advanced pressure transmitters to detect process noise, preventing flame-outs and shutdowns.' }},
+                { id: 'coatings', name: 'High-Emissivity Coatings', category: 'Thermal', savings: [7, 11], payback: 2, impact: 9, description: 'Applying ceramic coatings to tubes and refractory increases their ability to radiate and absorb heat, achieving the same duty at lower firing rates or increasing throughput.', case_study: { name: 'PTTGC Catalytic Reformer', result: 'Realized an ~11% efficiency benefit, unlocking 9.2M barrels of additional production over 8 years.' }},
+                { id: 'ifs', name: 'Inclined Firing System (IFS)', category: 'Thermal', savings: [0,0], payback: 4, impact: 8, description: 'A revamp that angles burners away from tubes to eliminate direct flame impingement, resulting in more uniform heat flux, lower TMTs, and significantly longer run lengths.', case_study: { name: 'FIS Case Study (Texas Refinery)', result: 'Heater run length was increased from a mere 3 months to 18 months (a 6x improvement) by eliminating flame impingement.' }},
+                { id: 'heat_recovery', name: 'Flue Gas Heat Recovery', category: 'Thermal', savings: [10, 25], payback: 3, impact: 10, description: 'Using air preheaters (APH) or economizers to recover heat from hot exhaust flue gas is a cornerstone of modern efficiency projects, dramatically boosting thermal efficiency.', case_study: { name: 'Iranian Refinery Model', result: 'Projected to increase furnace efficiency from 63% to 89% by installing an APH, with a payback period of just one year.' }},
+                { id: 'apc', name: 'Advanced Process Control (APC)', category: 'Digital', savings: [5, 8], payback: 2, impact: 8, description: 'Model Predictive Control (MPC) software that continuously adjusts multiple variables to optimize for economic outcomes like minimum energy use or maximum throughput.', case_study: { name: 'US Refinery', result: 'Implementation of an MPC-based APC system resulted in an 8% reduction in energy consumption and a 3% increase in throughput.' }},
+                { id: 'digital_twin', name: 'Digital Twin', category: 'Digital', savings: [0,0], payback: 5, impact: 9, description: 'A living, virtual simulation of the heater, updated with real-time data for predictive maintenance, "what-if" scenario testing, and operator training.', case_study: { name: 'Shell Global Assets', result: 'Wide implementation saves an estimated $2 billion annually through reduced downtime (20%) and maintenance costs (25%).' }},
+                { id: 'reliability', name: 'Proactive Maintenance & IOWs', category: 'Reliability', savings: [0,0], payback: 1, impact: 7, description: 'Utilizes online monitoring (IR thermography) and offline inspections (smart pigging) within defined Integrity Operating Windows (IOWs) to prevent failures and extend asset life.', case_study: { name: 'Reliability Feedback Loop', result: 'The cycle of monitoring, inspecting, assessing, and adjusting ensures the heater is operated reliably for its maximum possible lifespan.' }},
+                { id: 'sootblowing', name: 'Intelligent Sootblowing', category: 'Reliability', savings: [0,0], payback: 1.5, impact: 4, description: 'An "as-needed" approach to cleaning convection tubes, using performance data to activate soot blowers only when necessary, saving steam and reducing tube erosion.', case_study: { name: 'Jindal Power Plant', result: 'An optimized schedule saved over 1,300 tons of steam annually, with corresponding fuel and water cost reductions.' }}
+            ],
+            
+            roadmap: {
+                tier1: [
+                    { title: 'Energy Audit & Assessment', description: 'Conduct a comprehensive audit of critical heaters to establish a performance baseline and identify key improvement areas.' },
+                    { title: 'Rigorous Manual Tuning', description: 'Train and empower operators to make regular, data-driven adjustments to dampers and air registers. A German refinery saw a 3% efficiency gain from this alone.' },
+                    { title: 'Strengthen Maintenance Procedures', description: 'Review and improve existing procedures for refractory, tube supports, and burner cleanliness to ensure foundational reliability.' }
+                ],
+                tier2: [
+                    { title: 'Upgrade to TDLS Analyzers', description: 'Replace outdated O₂ probes with in-situ TDLS for O₂/CO. Enables tighter control with documented fuel savings up to 5%.' },
+                    { title: 'Install Heat Recovery Systems', description: 'Add air preheaters or economizers to high-duty heaters. Potential efficiency gains can exceed 20 percentage points.' },
+                    { title: 'Apply High-Emissivity Coatings', description: 'Apply coatings during a turnaround to yield an efficiency benefit of 7-11%, boosting throughput or saving fuel.' },
+                    { title: 'Pilot an APC Project', description: 'Implement Model Predictive Control on a single, high-value heater to prove the technology. Documented energy savings are 5-8%.' }
+                ],
+                tier3: [
+                    { title: 'Implement a Digital Twin', description: 'Create a dynamic digital twin for critical heaters for predictive maintenance and "what-if" optimization. Shell saves $2B annually with this approach.' },
+                    { title: 'Execute Major Heater Revamps', description: 'Use technologies like Inclined Firing or Split Flow to resolve fundamental design limitations, increasing run length and capacity.' },
+                    { title: 'Deploy Plant-Wide Optimization', description: 'Expand APC from a single unit to a site-wide real-time optimizer that coordinates multiple units for maximum profitability.' },
+                    { title: 'Prepare for the Energy Transition', description: 'Invest in hydrogen-ready burners and fuel systems to future-proof assets against evolving fuel markets and regulations.' }
+                ]
+            },
+
+            fundamentals: {
+                components: [
+                    { name: 'Burners', desc: 'Mix fuel and air to produce a stable, controlled flame.' },
+                    { name: 'Tubes (Coils)', desc: 'Conduits for the process fluid, absorbing heat from combustion.' },
+                    { name: 'Radiant Section', desc: 'The primary combustion chamber where tubes are exposed directly to the flame.' },
+                    { name: 'Convection Section', desc: 'Located downstream, this area recovers heat from hot flue gases via convection.' },
+                    { name: 'Shield Section', desc: 'Rows of tubes that shield the convection section from intense radiant heat.' },
+                    { name: 'Refractory', desc: 'Heat-resistant lining that provides insulation and minimizes heat loss.' },
+                    { name: 'Dampers & Registers', desc: 'Control the flow of combustion air and flue gas.' },
+                    { name: 'Stack', desc: 'Vents combustion byproducts safely into the atmosphere.' },
+                ],
+                heat_transfer: {
+                    title: "The Interplay of Heat Transfer Zones",
+                    intro: "A heater's efficiency is dictated by heat transfer in three key zones. The radiant section is the most critical, responsible for 55-85% of total heat duty. Optimizing radiant heat transfer, governed by the fourth power of temperature, provides the most significant efficiency gains.",
+                    zones: [
+                        { name: "Radiant Zone", desc: "Heat transfer is dominated by thermal radiation from flames and hot refractory directly to the tubes. Effectiveness is proportional to the fourth power of absolute temperature ($T^4$), making flame temperature paramount." },
+                        { name: "Convection Zone", desc: "Serves as a vital heat recovery area. Hot flue gases from the radiant section pass over tube banks, preheating the cooler incoming process fluid primarily through convection." },
+                        { name: "Shield Zone", desc: "Also called the shock section, these tubes are positioned between the radiant and convection zones. They absorb intense direct radiation, protecting the convection tubes from overheating." }
+                    ]
+                },
+                configurations: [
+                    { name: 'Vertical Cylindrical', desc: 'Cost-effective design with a vertical firebox. Common for reboilers and hot oil systems due to its small footprint.' },
+                    { name: 'Cabin (Horizontal Coils)', desc: 'Rectangular firebox with horizontal tubes. Preferred for critical services like crude heaters, as the design facilitates mechanical cleaning (decoking).' },
+                    { name: 'Box (Vertical Coils)', desc: 'Box-shaped firebox with vertical tubes, often used for high-duty services requiring precise temperature control.' }
+                ]
+            }
+        };
+
+        const contentArea = document.getElementById('content-area');
+        let overviewChart = null;
+        let strategyCharts = {};
+
+        const renderOverview = () => {
+            const savingsData = appData.strategies.filter(s => s.savings[1] > 0 || s.payback > 0).map(s => ({
+                x: (s.savings[0] + s.savings[1]) / 2, // Average savings
+                y: s.payback,
+                r: s.impact * 2.5, // Bubble size based on impact
+                name: s.name,
+                savingsRange: `${s.savings[0]}-${s.savings[1]}%`,
+            }));
+
+            contentArea.innerHTML = `
+                <div class="bg-white p-6 rounded-xl shadow-lg mb-8">
+                   <h2 class="text-2xl font-bold text-gray-800 mb-4 text-center">Executive Summary & Key Opportunities</h2>
+                   <p class="text-gray-600 mb-6 text-center max-w-4xl mx-auto">
+                       Fired heaters are the largest energy consumers in a refinery. Their optimization is the most significant lever for improving profitability and sustainability. While many heaters are designed for high efficiency, most operate below their potential. This dashboard visualizes key strategies—from simple tuning to advanced digital solutions—that can deliver substantial fuel savings (up to 25%), increase production, and enhance safety, often with rapid payback periods.
+                   </p>
+                    <div class="chart-container">
+                        <canvas id="overviewChart"></canvas>
+                    </div>
+                    <p class="text-center text-sm text-gray-500 mt-2">Interactive Chart: Hover over bubbles to explore strategies. X-Axis: Typical Fuel Savings (%), Y-Axis: Typical Payback Period (Years), Bubble Size: Relative Impact.</p>
+                </div>
+                
+                <div class="bg-white p-6 rounded-xl shadow-lg">
+                    <h2 class="text-2xl font-bold text-gray-800 mb-6 text-center">Anatomy of a Fired Heater</h2>
+                    <p class="text-gray-600 mb-6 text-center max-w-4xl mx-auto">
+                        To optimize a heater, it's essential to understand its core components and how heat is transferred. This simplified diagram shows the main sections. Hover over a labeled section to learn about its function. Heat is generated by burners, absorbed by process fluid in tubes, and recovered before exiting the stack.
+                    </p>
+                    <div class="relative w-full max-w-2xl mx-auto p-4 border-2 border-gray-300 rounded-lg bg-gray-50" style="height: 450px;">
+                        <!-- Heater Shell -->
+                        <div class="absolute top-2 left-2 right-2 bottom-16 border-2 border-gray-400 bg-white rounded-md">
+                            <!-- Convection Section -->
+                            <div class="heater-section absolute top-0 left-0 right-0 h-1/3 border-b-2 border-dashed border-gray-400" data-tooltip="Convection Section: Recovers heat from hot flue gas after it leaves the radiant section, preheating the process fluid. Crucial for overall efficiency.">
+                                <div class="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 text-sm font-semibold text-gray-500 p-1 bg-white rounded">CONVECTION</div>
+                            </div>
+                            <!-- Shield Section -->
+                            <div class="heater-section absolute top-1/3 left-0 right-0 h-1/6 border-b-2 border-dashed border-gray-400" data-tooltip="Shield Section: Protects the convection tubes from intense, direct radiation from the flames below.">
+                                <div class="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 text-sm font-semibold text-gray-500 p-1 bg-white rounded">SHIELD</div>
+                            </div>
+                             <!-- Radiant Section -->
+                            <div class="heater-section absolute bottom-0 left-0 right-0 h-1/2" data-tooltip="Radiant Section: The main combustion chamber. Heat is transferred primarily by direct radiation from flames to the process tubes. This is the most critical zone for heat transfer.">
+                                <div class="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 text-lg font-bold text-red-600">RADIANT</div>
+                            </div>
+                        </div>
+                        <!-- Stack -->
+                        <div class="heater-section absolute top-2 left-1/2 -translate-x-1/2 w-1/4 h-1/4 bg-gray-300 border-2 border-gray-400 rounded-t-md" style="top: -10%;" data-tooltip="Stack: Vents the final combustion byproducts (flue gas) into the atmosphere. High stack temperature indicates wasted energy.">
+                            <div class="absolute bottom-2 left-1/2 -translate-x-1/2 text-sm font-semibold text-gray-600">STACK</div>
+                        </div>
+                         <!-- Burners -->
+                        <div class="absolute bottom-0 left-1/4 w-1/2 h-16 flex justify-around items-center" data-tooltip="Burners: Mix fuel and air to create a controlled flame, providing the heat for the entire process.">
+                            <div class="w-1/3 h-full bg-blue-500 rounded-t-md heater-section" data-tooltip="Burner 1"></div>
+                            <div class="w-1/3 h-full bg-blue-500 rounded-t-md heater-section" data-tooltip="Burner 2"></div>
+                            <div class="absolute -bottom-6 text-sm font-semibold text-blue-800">BURNERS</div>
+                        </div>
+                        <!-- Tooltip -->
+                        <div id="heater-tooltip" class="absolute hidden bg-black text-white text-xs rounded py-1 px-2 z-10"></div>
+                    </div>
+                </div>
+            `;
+            const ctx = document.getElementById('overviewChart').getContext('2d');
+            if(overviewChart) overviewChart.destroy();
+            overviewChart = new Chart(ctx, {
+                type: 'bubble',
+                data: {
+                    datasets: [{
+                        label: 'Optimization Strategies',
+                        data: savingsData,
+                        backgroundColor: 'rgba(59, 130, 246, 0.7)',
+                        borderColor: 'rgb(59, 130, 246)',
+                    }]
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    scales: {
+                        x: {
+                            title: { display: true, text: 'Typical Fuel Savings (%)' },
+                            min: 0,
+                            max: 26
+                        },
+                        y: {
+                            title: { display: true, text: 'Typical Payback Period (Years)' },
+                            min: 0,
+                            max: 6
+                        }
+                    },
+                    plugins: {
+                        tooltip: {
+                            callbacks: {
+                                label: function(context) {
+                                    const d = context.raw;
+                                    return `${d.name}: ${d.savingsRange} savings, ~${d.y} yr payback`;
+                                }
+                            }
+                        },
+                        legend: { display: false }
+                    }
+                }
+            });
+
+            const heaterSections = document.querySelectorAll('.heater-section');
+            const tooltip = document.getElementById('heater-tooltip');
+            heaterSections.forEach(section => {
+                section.addEventListener('mousemove', e => {
+                    tooltip.style.left = e.pageX - section.getBoundingClientRect().left + 15 + 'px';
+                    tooltip.style.top = e.pageY - section.getBoundingClientRect().top + 15 - contentArea.getBoundingClientRect().top + 'px';
+                });
+                section.addEventListener('mouseenter', e => {
+                    tooltip.textContent = e.target.dataset.tooltip;
+                    tooltip.style.display = 'block';
+                });
+                section.addEventListener('mouseleave', () => {
+                    tooltip.style.display = 'none';
+                });
+            });
+        };
+
+        const renderLevers = () => {
+            const categories = ['Combustion', 'Thermal', 'Digital', 'Reliability'];
+            const categoryDesc = {
+                'Combustion': 'Mastering the air and fuel mix is the most critical lever for efficiency. These strategies focus on achieving complete combustion with minimum excess air.',
+                'Thermal': 'These strategies enhance how heat is transferred within the heater and recover energy that would otherwise be wasted up the stack.',
+                'Digital': 'Leveraging data, advanced analytics, and software to move from static adjustments to continuous, dynamic, and economically-driven optimization.',
+                'Reliability': 'Building a foundation of robust equipment health and safety is a prerequisite for sustained performance. A reliable heater is an efficient heater.'
+            };
+            let html = `
+                <div class="text-center mb-8">
+                     <h2 class="text-3xl font-bold text-gray-800 mb-2">Optimization Levers</h2>
+                     <p class="text-gray-600 max-w-4xl mx-auto">
+                        Explore the four fundamental pillars of fired heater optimization. Each category contains specific technologies and strategies you can implement. Click on any strategy card to reveal its details, benefits, typical fuel savings, and a real-world case study.
+                     </p>
+                </div>
+            `;
+
+            categories.forEach(cat => {
+                html += `
+                    <div class="mb-8 bg-white p-6 rounded-xl shadow-lg">
+                        <h3 class="text-2xl font-bold text-blue-800 mb-2">${cat}</h3>
+                        <p class="text-gray-600 mb-6">${categoryDesc[cat]}</p>
+                        <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+                            ${appData.strategies.filter(s => s.category === cat).map(s => `
+                                <div class="bg-gray-50 border border-gray-200 rounded-lg p-4 strategy-card accordion-trigger" data-target="${s.id}">
+                                    <h4 class="font-bold text-lg text-gray-800">${s.name}</h4>
+                                    <p class="text-sm text-gray-500 mt-1">${s.description.substring(0, 70)}...</p>
+                                </div>
+                            `).join('')}
+                        </div>
+                        <div id="${cat}-details" class="mt-4">
+                            ${appData.strategies.filter(s => s.category === cat).map(s => `
+                                <div id="${s.id}" class="accordion-content bg-blue-50/50 border-l-4 border-blue-500 rounded-r-lg p-6">
+                                    <h5 class="font-bold text-xl mb-3 text-gray-900">${s.name}</h5>
+                                    <div class="flex flex-col md:flex-row gap-6">
+                                        <div class="flex-1">
+                                            <p class="text-gray-700 mb-4">${s.description}</p>
+                                            <div class="bg-blue-100 p-4 rounded-lg">
+                                                <h6 class="font-semibold text-blue-900 mb-2">Case Study: ${s.case_study.name}</h6>
+                                                <p class="text-sm text-blue-800"><strong>Result:</strong> ${s.case_study.result}</p>
+                                            </div>
+                                        </div>
+                                        ${s.savings[1] > 0 ? `
+                                        <div class="md:w-1/3">
+                                            <p class="text-center font-semibold text-gray-700">Typical Fuel Savings</p>
+                                            <div class="small-chart-container">
+                                                <canvas id="chart-${s.id}"></canvas>
+                                            </div>
+                                        </div>
+                                        ` : ''}
+                                    </div>
+                                </div>
+                            `).join('')}
+                        </div>
+                    </div>
+                `;
+            });
+            contentArea.innerHTML = html;
+            
+            appData.strategies.forEach(s => {
+                if (s.savings[1] > 0) {
+                    const ctx = document.getElementById(`chart-${s.id}`).getContext('2d');
+                    if(strategyCharts[s.id]) strategyCharts[s.id].destroy();
+                    strategyCharts[s.id] = new Chart(ctx, {
+                        type: 'bar',
+                        data: {
+                            labels: ['Savings'],
+                            datasets: [{
+                                label: 'Min Savings (%)',
+                                data: [s.savings[0]],
+                                backgroundColor: 'rgba(59, 130, 246, 0.5)',
+                                borderColor: 'rgb(59, 130, 246)',
+                                borderWidth: 1
+                            }, {
+                                label: 'Max Savings (%)',
+                                data: [s.savings[1]],
+                                backgroundColor: 'rgba(29, 78, 216, 0.7)',
+                                borderColor: 'rgb(29, 78, 216)',
+                                borderWidth: 1
+                            }]
+                        },
+                        options: {
+                            responsive: true,
+                            maintainAspectRatio: false,
+                            indexAxis: 'y',
+                            scales: {
+                                x: { beginAtZero: true, max: 26 },
+                            },
+                            plugins: {
+                                legend: { display: false }
+                            }
+                        }
+                    });
+                }
+            });
+        };
+
+        const renderRoadmap = () => {
+            contentArea.innerHTML = `
+                <div class="text-center mb-8">
+                     <h2 class="text-3xl font-bold text-gray-800 mb-2">Tiered Implementation Roadmap</h2>
+                     <p class="text-gray-600 max-w-4xl mx-auto">
+                        A successful optimization program can be phased to align with budgets and priorities. This roadmap outlines a practical progression from foundational, low-cost improvements to advanced, strategic investments. Start with Tier 1 to capture quick wins before moving to more significant capital projects.
+                     </p>
+                </div>
+                <div class="grid grid-cols-1 lg:grid-cols-3 gap-8">
+                    <!-- Tier 1 -->
+                    <div class="bg-white p-6 rounded-xl shadow-lg border-t-4 border-green-500">
+                        <h3 class="text-2xl font-bold text-green-800 mb-1">Tier 1: Foundational</h3>
+                        <p class="font-semibold text-green-600 mb-4">&lt;1 Year Payback | Low/No CAPEX</p>
+                        <ul class="space-y-4">
+                        ${appData.roadmap.tier1.map(item => `
+                            <li class="p-4 bg-green-50 rounded-lg">
+                                <h4 class="font-semibold text-green-900">${item.title}</h4>
+                                <p class="text-sm text-green-800 mt-1">${item.description}</p>
+                            </li>
+                        `).join('')}
+                        </ul>
+                    </div>
+                    <!-- Tier 2 -->
+                    <div class="bg-white p-6 rounded-xl shadow-lg border-t-4 border-yellow-500">
+                        <h3 class="text-2xl font-bold text-yellow-800 mb-1">Tier 2: Intermediate</h3>
+                        <p class="font-semibold text-yellow-600 mb-4">1-5 Year Payback | Medium CAPEX</p>
+                        <ul class="space-y-4">
+                        ${appData.roadmap.tier2.map(item => `
+                            <li class="p-4 bg-yellow-50 rounded-lg">
+                                <h4 class="font-semibold text-yellow-900">${item.title}</h4>
+                                <p class="text-sm text-yellow-800 mt-1">${item.description}</p>
+                            </li>
+                        `).join('')}
+                        </ul>
+                    </div>
+                    <!-- Tier 3 -->
+                    <div class="bg-white p-6 rounded-xl shadow-lg border-t-4 border-red-500">
+                        <h3 class="text-2xl font-bold text-red-800 mb-1">Tier 3: Advanced</h3>
+                        <p class="font-semibold text-red-600 mb-4">Strategic ROI | High CAPEX</p>
+                        <ul class="space-y-4">
+                        ${appData.roadmap.tier3.map(item => `
+                            <li class="p-4 bg-red-50 rounded-lg">
+                                <h4 class="font-semibold text-red-900">${item.title}</h4>
+                                <p class="text-sm text-red-800 mt-1">${item.description}</p>
+                            </li>
+                        `).join('')}
+                        </ul>
+                    </div>
+                </div>
+            `;
+        };
+
+        const renderFundamentals = () => {
+            const { components, heat_transfer, configurations } = appData.fundamentals;
+            contentArea.innerHTML = `
+                <div class="text-center mb-8">
+                     <h2 class="text-3xl font-bold text-gray-800 mb-2">Fired Heater Fundamentals</h2>
+                     <p class="text-gray-600 max-w-4xl mx-auto">
+                        This section provides background information on the design and operating principles of fired heaters. Understanding these fundamentals is key to identifying and implementing effective optimization strategies.
+                     </p>
+                </div>
+                
+                <div class="space-y-8">
+                    <div class="bg-white p-6 rounded-xl shadow-lg">
+                        <h3 class="text-2xl font-bold text-gray-800 mb-4">Core Components</h3>
+                        <ul class="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-4">
+                           ${components.map(c => `
+                               <li class="bg-gray-100 p-3 rounded-md">
+                                   <p class="font-semibold text-gray-800">${c.name}</p>
+                                   <p class="text-sm text-gray-600">${c.desc}</p>
+                               </li>
+                           `).join('')}
+                        </ul>
+                    </div>
+
+                    <div class="bg-white p-6 rounded-xl shadow-lg">
+                        <h3 class="text-2xl font-bold text-gray-800 mb-4">${heat_transfer.title}</h3>
+                        <p class="text-gray-600 mb-6">${heat_transfer.intro}</p>
+                        <div class="space-y-4">
+                           ${heat_transfer.zones.map(z => `
+                               <div class="border-l-4 border-blue-400 pl-4 py-2 bg-blue-50 rounded-r-md">
+                                   <p class="font-semibold text-blue-800">${z.name}</p>
+                                   <p class="text-sm text-blue-700">${z.desc}</p>
+                               </div>
+                           `).join('')}
+                        </div>
+                    </div>
+
+                    <div class="bg-white p-6 rounded-xl shadow-lg">
+                        <h3 class="text-2xl font-bold text-gray-800 mb-4">Key Heater Configurations</h3>
+                         <div class="grid md:grid-cols-3 gap-4">
+                           ${configurations.map(c => `
+                               <div class="bg-gray-100 p-4 rounded-md">
+                                   <p class="font-semibold text-gray-800">${c.name}</p>
+                                   <p class="text-sm text-gray-600">${c.desc}</p>
+                               </div>
+                           `).join('')}
+                        </div>
+                    </div>
+                </div>
+            `;
+        };
+
+        const tabs = document.querySelectorAll('[data-tab]');
+        tabs.forEach(tab => {
+            tab.addEventListener('click', () => {
+                tabs.forEach(t => t.classList.replace('tab-active', 'tab-inactive'));
+                tab.classList.replace('tab-inactive', 'tab-active');
+                
+                const tabName = tab.dataset.tab;
+                switch(tabName) {
+                    case 'overview': renderOverview(); break;
+                    case 'levers': renderLevers(); break;
+                    case 'roadmap': renderRoadmap(); break;
+                    case 'fundamentals': renderFundamentals(); break;
+                }
+            });
+        });
+        
+        contentArea.addEventListener('click', (e) => {
+            const trigger = e.target.closest('.accordion-trigger');
+            if (trigger) {
+                const targetId = trigger.dataset.target;
+                const content = document.getElementById(targetId);
+                const allContent = trigger.closest('.mb-8').querySelectorAll('.accordion-content');
+
+                allContent.forEach(item => {
+                    if (item.id !== targetId) {
+                        item.style.maxHeight = 0;
+                    }
+                });
+
+                if (content.style.maxHeight && content.style.maxHeight !== '0px') {
+                    content.style.maxHeight = 0;
+                } else {
+                    content.style.maxHeight = content.scrollHeight + "px";
+                }
+            }
+        });
+
+        // Initial render
+        renderOverview();
+
+    </script>
+</body>
+</html>
